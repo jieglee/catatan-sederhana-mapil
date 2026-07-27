@@ -31,7 +31,7 @@ export default function NotesScreen() {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
 
-    // --- Load data saat screen dibuka, dengan cleanup biar gak "memory leak" ---
+    // --- Load data when the screen mounts, with cleanup to avoid a "memory leak" ---
     useEffect(() => {
         let isMounted = true;
 
@@ -39,7 +39,7 @@ export default function NotesScreen() {
             const { data: userData } = await supabase.auth.getUser();
             const uid = userData?.user?.id ?? null;
 
-            if (!isMounted) return; // screen udah di-unmount sebelum request selesai
+            if (!isMounted) return; // screen was unmounted before the request finished
             setUserId(uid);
 
             if (uid) {
@@ -52,7 +52,7 @@ export default function NotesScreen() {
         loadInitialData();
 
         return () => {
-            isMounted = false; // cleanup: cegah setState setelah unmount
+            isMounted = false; // cleanup: prevent setState after unmount
         };
     }, []);
 
@@ -67,7 +67,7 @@ export default function NotesScreen() {
         if (!isMountedFlag) return;
 
         if (error) {
-            Alert.alert('Gagal ambil data', error.message);
+            Alert.alert('Failed to load notes', error.message);
         } else {
             setNotes(data as Note[]);
         }
@@ -94,7 +94,7 @@ export default function NotesScreen() {
 
     async function handleSave() {
         if (!title.trim()) {
-            Alert.alert('Error', 'Judul gak boleh kosong');
+            Alert.alert('Error', 'Title cannot be empty');
             return;
         }
         if (!userId) return;
@@ -107,7 +107,7 @@ export default function NotesScreen() {
                 .eq('user_id', userId);
 
             if (error) {
-                Alert.alert('Gagal update', error.message);
+                Alert.alert('Failed to update', error.message);
                 return;
             }
         } else {
@@ -116,7 +116,7 @@ export default function NotesScreen() {
                 .insert({ title, content, user_id: userId });
 
             if (error) {
-                Alert.alert('Gagal nambah catatan', error.message);
+                Alert.alert('Failed to add note', error.message);
                 return;
             }
         }
@@ -126,10 +126,10 @@ export default function NotesScreen() {
     }
 
     function handleDelete(item: Note) {
-        Alert.alert('Hapus Catatan', `Yakin mau hapus "${item.title}"?`, [
-            { text: 'Batal', style: 'cancel' },
+        Alert.alert('Delete Note', `Are you sure you want to delete "${item.title}"?`, [
+            { text: 'Cancel', style: 'cancel' },
             {
-                text: 'Hapus',
+                text: 'Delete',
                 style: 'destructive',
                 onPress: async () => {
                     const { error } = await supabase
@@ -139,7 +139,7 @@ export default function NotesScreen() {
                         .eq('user_id', userId ?? '');
 
                     if (error) {
-                        Alert.alert('Gagal hapus', error.message);
+                        Alert.alert('Failed to delete', error.message);
                         return;
                     }
                     refresh();
@@ -155,7 +155,12 @@ export default function NotesScreen() {
 
     function renderItem({ item }: { item: Note }) {
         return (
-            <TouchableOpacity style={styles.noteCard} onPress={() => openEditModal(item)}>
+            <TouchableOpacity
+                style={styles.noteCard}
+                onPress={() => openEditModal(item)}
+                activeOpacity={0.8}
+            >
+                <View style={styles.noteAccent} />
                 <View style={{ flex: 1 }}>
                     <Text style={styles.noteTitle}>{item.title}</Text>
                     {!!item.content && (
@@ -165,7 +170,7 @@ export default function NotesScreen() {
                     )}
                 </View>
                 <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn}>
-                    <Text style={styles.deleteText}>Hapus</Text>
+                    <Text style={styles.deleteText}>Delete</Text>
                 </TouchableOpacity>
             </TouchableOpacity>
         );
@@ -174,27 +179,40 @@ export default function NotesScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Catatan Gua</Text>
-                <TouchableOpacity onPress={handleLogout}>
+                <View>
+                    <Text style={styles.headerTitle}>My Notes</Text>
+                    <Text style={styles.headerSubtitle}>
+                        {notes.length > 0
+                            ? `${notes.length} note${notes.length > 1 ? 's' : ''} saved`
+                            : 'Nothing here yet'}
+                    </Text>
+                </View>
+                <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
                     <Text style={styles.logout}>Logout</Text>
                 </TouchableOpacity>
             </View>
 
             {loading ? (
-                <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+                <ActivityIndicator size="large" color="#EC4899" style={{ marginTop: 40 }} />
             ) : (
                 <FlatList
                     data={notes}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
-                    contentContainerStyle={{ padding: 16 }}
+                    contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
                     ListEmptyComponent={
-                        <Text style={styles.empty}>Belum ada catatan. Tap tombol + buat nambah.</Text>
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyEmoji}>🗒️</Text>
+                            <Text style={styles.empty}>No notes yet</Text>
+                            <Text style={styles.emptySubtext}>
+                                Tap the + button below to create your first one
+                            </Text>
+                        </View>
                     }
                 />
             )}
 
-            <TouchableOpacity style={styles.fab} onPress={openAddModal}>
+            <TouchableOpacity style={styles.fab} onPress={openAddModal} activeOpacity={0.85}>
                 <Text style={styles.fabText}>+</Text>
             </TouchableOpacity>
 
@@ -202,33 +220,42 @@ export default function NotesScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalBox}>
                         <Text style={styles.modalTitle}>
-                            {editingId ? 'Edit Catatan' : 'Catatan Baru'}
+                            {editingId ? 'Edit Note' : 'New Note'}
                         </Text>
+
+                        <Text style={styles.inputLabel}>Title</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Judul"
+                            placeholder="Give it a title"
+                            placeholderTextColor="#B0AAB0"
                             value={title}
                             onChangeText={setTitle}
                         />
+
+                        <Text style={styles.inputLabel}>Content</Text>
                         <TextInput
-                            style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
-                            placeholder="Isi catatan"
+                            style={[styles.input, styles.textArea]}
+                            placeholder="Write something..."
+                            placeholderTextColor="#B0AAB0"
                             value={content}
                             onChangeText={setContent}
                             multiline
                         />
+
                         <View style={styles.modalActions}>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.cancelButton]}
                                 onPress={() => setModalVisible(false)}
+                                activeOpacity={0.8}
                             >
-                                <Text>Batal</Text>
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.saveButton]}
                                 onPress={handleSave}
+                                activeOpacity={0.85}
                             >
-                                <Text style={{ color: '#fff' }}>Simpan</Text>
+                                <Text style={styles.saveButtonText}>Save</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -239,61 +266,121 @@ export default function NotesScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
+    container: { flex: 1, backgroundColor: '#FFF8FA' },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
-        paddingTop: 50,
+        padding: 20,
+        paddingTop: 56,
+        paddingBottom: 20,
+        backgroundColor: '#fff',
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#F5E4EC',
     },
-    headerTitle: { fontSize: 22, fontWeight: 'bold' },
-    logout: { color: '#dc2626', fontWeight: '600' },
+    headerTitle: { fontSize: 24, fontWeight: '700', color: '#2B2130' },
+    headerSubtitle: { fontSize: 13, color: '#A78B9A', marginTop: 2 },
+    logoutBtn: {
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 20,
+        backgroundColor: '#FDECEC',
+    },
+    logout: { color: '#DC2626', fontWeight: '600', fontSize: 13 },
     noteCard: {
         flexDirection: 'row',
-        backgroundColor: '#f3f4f6',
-        padding: 14,
-        borderRadius: 10,
-        marginBottom: 10,
+        backgroundColor: '#fff',
+        padding: 16,
+        borderRadius: 14,
+        marginBottom: 12,
         alignItems: 'center',
+        shadowColor: '#D6A4BE',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 2,
     },
-    noteTitle: { fontSize: 16, fontWeight: '600' },
-    noteContent: { color: '#555', marginTop: 4 },
-    deleteBtn: { paddingHorizontal: 8 },
-    deleteText: { color: '#dc2626' },
-    empty: { textAlign: 'center', marginTop: 40, color: '#888' },
+    noteAccent: {
+        width: 4,
+        height: '80%',
+        borderRadius: 4,
+        backgroundColor: '#EC4899',
+        marginRight: 12,
+    },
+    noteTitle: { fontSize: 16, fontWeight: '600', color: '#2B2130' },
+    noteContent: { color: '#8A7A87', marginTop: 4, fontSize: 13, lineHeight: 18 },
+    deleteBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+    deleteText: { color: '#DC2626', fontSize: 13, fontWeight: '500' },
+    emptyState: { alignItems: 'center', marginTop: 80, paddingHorizontal: 40 },
+    emptyEmoji: { fontSize: 40, marginBottom: 12 },
+    empty: { textAlign: 'center', color: '#2B2130', fontSize: 16, fontWeight: '600' },
+    emptySubtext: {
+        textAlign: 'center',
+        marginTop: 6,
+        color: '#A78B9A',
+        fontSize: 13,
+        lineHeight: 18,
+    },
     fab: {
         position: 'absolute',
         right: 24,
         bottom: 32,
-        backgroundColor: '#2563eb',
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        backgroundColor: '#EC4899',
+        width: 58,
+        height: 58,
+        borderRadius: 29,
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 4,
+        shadowColor: '#EC4899',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 10,
+        elevation: 6,
     },
-    fabText: { color: '#fff', fontSize: 30, lineHeight: 32 },
+    fabText: { color: '#fff', fontSize: 30, lineHeight: 32, fontWeight: '300' },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
+        backgroundColor: 'rgba(43,33,48,0.45)',
         justifyContent: 'center',
         padding: 24,
     },
-    modalBox: { backgroundColor: '#fff', borderRadius: 12, padding: 20 },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
-        padding: 10,
-        marginBottom: 10,
+    modalBox: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 8,
     },
-    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-    modalButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
-    cancelButton: { backgroundColor: '#e5e7eb' },
-    saveButton: { backgroundColor: '#2563eb' },
+    modalTitle: { fontSize: 19, fontWeight: '700', marginBottom: 18, color: '#2B2130' },
+    inputLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#8A7A87',
+        marginBottom: 6,
+        marginTop: 4,
+    },
+    input: {
+        borderWidth: 1.5,
+        borderColor: '#F0DCE6',
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 14,
+        fontSize: 15,
+        color: '#2B2130',
+        backgroundColor: '#FFFBFC',
+    },
+    textArea: { height: 110, textAlignVertical: 'top' },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
+    modalButton: {
+        paddingVertical: 11,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+    },
+    cancelButton: { backgroundColor: '#F5EEF2' },
+    cancelButtonText: { color: '#6B5A64', fontWeight: '600' },
+    saveButton: { backgroundColor: '#EC4899' },
+    saveButtonText: { color: '#fff', fontWeight: '600' },
 });
