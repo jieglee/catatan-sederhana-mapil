@@ -51,7 +51,7 @@ export default function LoginScreen() {
         }
 
         // replace, bukan push -> user gak bisa balik ke Login pake tombol back
-        router.replace('/notes');
+        router.replace('/notes' as any);
     }
 
     return (

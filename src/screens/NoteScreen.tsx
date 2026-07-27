@@ -150,7 +150,7 @@ export default function NotesScreen() {
 
     async function handleLogout() {
         await supabase.auth.signOut();
-        router.replace('/');
+        router.replace('/' as any);
     }
 
     function renderItem({ item }: { item: Note }) {
