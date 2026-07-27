@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
 // Ganti dengan URL & anon key project Supabase lu sendiri
-const supabaseUrl = 'https://mixrkazrdrhzpcqolmap.supabase.co';
-const supabaseAnonKey = 'sb_publishable_TUWzl-Nk4pdarkU5qba-Zg_DC46tUxi';
+const supabaseUrl = 'https://gqhhpfacfjhlmtejeson.supabase.co';
+const supabaseAnonKey = 'sb_publishable_9dRKbQ7o4CAr2xPJp_3MXw_Eip-dyMw';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -16,4 +16,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         persistSession: true,
         detectSessionInUrl: false,
     },
+    
 });
